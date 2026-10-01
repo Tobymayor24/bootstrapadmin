@@ -1,0 +1,76 @@
+name: StarAdmin CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staradmin-production
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    name: Validate Docker build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Build application image
+        run: docker build --tag staradmin-web:${{ github.sha }} .
+
+  deploy:
+    name: Deploy to server
+    needs: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Prepare server deployment directory
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_PRIVATE_KEY }}
+          port: ${{ secrets.VM_SSH_PORT || 22 }}
+          #fingerprint: ${{ secrets.VM_HOST_FINGERPRINT }}
+          request_pty: false
+          script: |
+            set -e
+            mkdir -p /opt/myapps3
+
+      - name: Copy app files to server
+        uses: appleboy/scp-action@v1.0.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_PRIVATE_KEY }}
+          port: ${{ secrets.VM_SSH_PORT || 22 }}
+          #fingerprint: ${{ secrets.VM_HOST_FINGERPRINT }}
+          source: "Dockerfile,compose.yaml,nginx.conf,src"
+          target: /opt/myapps3
+          overwrite: true
+          command_timeout: 10m
+
+      - name: Start or update Compose application
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_PRIVATE_KEY }}
+          port: ${{ secrets.VM_SSH_PORT || 22 }}
+          #fingerprint: ${{ secrets.VM_HOST_FINGERPRINT }}
+          command_timeout: 15m
+          request_pty: false
+          script: |
+            set -e
+            cd /opt/myapps3
+            docker compose up -d --build --remove-orphans
+            docker compose ps
