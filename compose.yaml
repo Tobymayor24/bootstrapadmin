@@ -4,7 +4,6 @@ services:
       context: .
       dockerfile: Dockerfile
     image: staradmin-web
-    container_name: staradmin-web
     ports:
       - "${STARADMIN_PORT:-3000}:80"
     restart: unless-stopped

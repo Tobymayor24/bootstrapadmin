@@ -72,5 +72,6 @@ jobs:
           script: |
             set -e
             cd /opt/myapps3
+            docker rm -f staradmin-web >/dev/null 2>&1 || true
             docker compose up -d --build --remove-orphans
             docker compose ps
