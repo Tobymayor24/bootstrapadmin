@@ -3,7 +3,7 @@ name: StarAdmin CI/CD
 on:
   push:
     branches:
-      - main
+      - branch2
   workflow_dispatch:
 
 permissions:
